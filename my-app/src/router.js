@@ -3,11 +3,13 @@ import { createBrowserRouter, Route, createRoutesFromElements } from "react-rout
 import App from './App';
 import Login from './components/Login';
 import Register from './components/Register';
+import Resetpassword from './components/Resetpassword';
 
 const routes = createRoutesFromElements(
   <Route path="/" element={<App />}>
     <Route path="login" element={<Login />} />
     <Route path="register" element={<Register />} />
+    <Route path="resetpassword" element={<Resetpassword />} />
   </Route>
 );
 
