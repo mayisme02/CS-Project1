@@ -1,184 +1,131 @@
-import {
-  Alert,
-  StyleSheet,
-  TouchableOpacity,
-  Text,
-  View,
-  TextInput,
-  Keyboard,
-} from 'react-native';
-import MapView, {
-  Callout,
-  Marker,
-  PROVIDER_GOOGLE,
-  Region,
-  LatLng,
-} from 'react-native-maps';
-import Animated from 'react-native-reanimated';
-import React, { useEffect, useRef, useState } from 'react';
-import { useNavigation } from 'expo-router';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, View, Alert, Text, TouchableOpacity, TextInput, Modal, useWindowDimensions } from 'react-native';
+import MapView, { Marker, Callout, LatLng, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
+import axios from 'axios';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const GOOGLE_API_KEY = 'AIzaSyBHkvOH59JWlGWWrGh3dyconyJXgG5YGjM'; // แก้เป็น API key ของคุณเอง
+interface CustomMarker {
+  latitude: number;
+  longitude: number;
+  name?: string;
+}
 
-export default function TabTwoScreen() {
+const initialRegion = {
+  latitude: 16.475501563990804,
+  longitude: 102.82504940900262,
+  latitudeDelta: 0.01,
+  longitudeDelta: 0.01,
+};
+
+export default function Maps() {
   const mapRef = useRef<MapView>(null);
-  const navigation = useNavigation();
-  const [region, setRegion] = useState<Region>({
-    latitude: 16.475501563990804,
-    longitude: 102.82504940900262,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  });
-  const [markers, setMarkers] = useState([
-    {
-      latitude: 16.475501563990804,
-      longitude: 102.82504940900262,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-      name: 'kku',
-    },
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
+  const [region, setRegion] = useState<Region>(initialRegion);
+  const [markers, setMarkers] = useState<CustomMarker[]>([
+    { latitude: initialRegion.latitude, longitude: initialRegion.longitude, name: 'จุดเริ่มต้น' },
   ]);
   const [searchText, setSearchText] = useState('');
-  const [zoomLevel, setZoomLevel] = useState(0.01);
-  const [useCurrentLocation, setUseCurrentLocation] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(0.05);
+  const [modalVisible, setModalVisible] = useState(false);
 
-  useEffect(() => {
-    navigation.setOptions({ headerShown: false });
-  }, []);
-
-  useEffect(() => {
-    if (useCurrentLocation) {
-      (async () => {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission denied', 'ไม่สามารถเข้าถึงตำแหน่งได้');
-          return;
-        }
-        let location = await Location.getCurrentPositionAsync({});
-        const currentRegion = {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          latitudeDelta: zoomLevel,
-          longitudeDelta: zoomLevel,
-        };
-        setRegion(currentRegion);
-        setMarkers([{ ...currentRegion, name: 'ตำแหน่งปัจจุบัน' }]);
-      })();
+  const getCurrentLocation = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission denied', 'ไม่สามารถเข้าถึงตำแหน่งได้');
+      return;
     }
-  }, [useCurrentLocation]);
-
-  const searchLocation = async () => {
-    if (!searchText) return;
-    try {
-      const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(
-        searchText
-      )}&inputtype=textquery&fields=geometry,name&key=${GOOGLE_API_KEY}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      if (
-        data.candidates &&
-        data.candidates.length > 0 &&
-        data.candidates[0].geometry
-      ) {
-        const location = data.candidates[0].geometry.location;
-        const newRegion = {
-          latitude: location.lat,
-          longitude: location.lng,
-          latitudeDelta: zoomLevel,
-          longitudeDelta: zoomLevel,
-        };
-        setRegion(newRegion);
-        mapRef.current?.animateToRegion(newRegion, 1000);
-        setMarkers([
-          {
-            latitude: location.lat,
-            longitude: location.lng,
-            name: data.candidates[0].name,
-            latitudeDelta: zoomLevel,
-            longitudeDelta: zoomLevel,
-          },
-        ]);
-        Keyboard.dismiss();
-      } else {
-        Alert.alert('ไม่พบสถานที่', 'กรุณาลองค้นหาใหม่');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'เกิดข้อผิดพลาดในการค้นหา');
-      console.error(error);
-    }
-  };
-
-  const focusMap = () => {
-    if (region) {
-      mapRef.current?.animateToRegion(region, 1000);
-    }
+    let location = await Location.getCurrentPositionAsync({});
+    const currentLocation: CustomMarker = {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+      name: 'ตำแหน่งปัจจุบัน',
+    };
+    setMarkers([currentLocation]);
+    setRegion({
+      ...region,
+      latitude: currentLocation.latitude,
+      longitude: currentLocation.longitude,
+    });
+    mapRef.current?.animateToRegion(
+      {
+        ...region,
+        latitude: currentLocation.latitude,
+        longitude: currentLocation.longitude,
+      },
+      1000
+    );
+    setModalVisible(false);
   };
 
   const zoomIn = () => {
-    if (region && zoomLevel > 0.001) {
+    if (zoomLevel > 0.001) {
       const newZoom = zoomLevel / 2;
       setZoomLevel(newZoom);
-      const newRegion = { ...region, latitudeDelta: newZoom, longitudeDelta: newZoom };
-      setRegion(newRegion);
-      mapRef.current?.animateToRegion(newRegion, 500);
+      updateRegionZoom(newZoom);
     }
   };
 
   const zoomOut = () => {
-    if (region && zoomLevel < 1) {
+    if (zoomLevel < 1) {
       const newZoom = zoomLevel * 2;
       setZoomLevel(newZoom);
-      const newRegion = { ...region, latitudeDelta: newZoom, longitudeDelta: newZoom };
-      setRegion(newRegion);
-      mapRef.current?.animateToRegion(newRegion, 500);
+      updateRegionZoom(newZoom);
     }
   };
 
-  const onRegionChange = (region: Region) => {
-    // console.log(region);
+  const updateRegionZoom = (newZoom: number) => {
+    const newRegion = { ...region, latitudeDelta: newZoom, longitudeDelta: newZoom };
+    setRegion(newRegion);
+    mapRef.current?.animateToRegion(newRegion, 500);
   };
 
-  const handleMarkerPress = (coordinate: LatLng) => {
-    Alert.alert(
-      'ยืนยันการปักหมุด',
-      `คุณต้องการปักหมุดที่ ละติจูด: ${coordinate.latitude.toFixed(5)}, ลองจิจูด: ${coordinate.longitude.toFixed(5)} หรือไม่?`,
-      [
-        { text: 'ยกเลิก', style: 'cancel' },
+  const handleMapPress = () => {
+    setModalVisible(true);
+  };
+
+  const GOOGLE_API_KEY = 'AIzaSyCSFB11ZL46SmsP15p9MSVnu6KkUhZPN40';
+  const searchLocation = async () => {
+    if (!searchText.trim()) {
+      Alert.alert('กรุณากรอกสถานที่');
+      return;
+    }
+    try {
+      const response = await axios.get(
+        `https://maps.googleapis.com/maps/api/geocode/json`,
         {
-          text: 'ยืนยัน',
-          onPress: () => {
-            const newMarker = {
-              latitude: coordinate.latitude,
-              longitude: coordinate.longitude,
-              latitudeDelta: zoomLevel,
-              longitudeDelta: zoomLevel,
-              name: `ตำแหน่งใหม่: (${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)})`,
-            };
-            setMarkers([newMarker]);
-            setRegion({ ...newMarker });
-            mapRef.current?.animateToRegion(newMarker, 1000);
+          params: { address: searchText, key: GOOGLE_API_KEY, language: 'th' },
+        }
+      );
+      if (response.data.status === 'OK') {
+        const { lat, lng } = response.data.results[0].geometry.location;
+        setRegion({
+          ...region,
+          latitude: lat,
+          longitude: lng,
+        });
+        mapRef.current?.animateToRegion(
+          {
+            ...region,
+            latitude: lat,
+            longitude: lng,
           },
-        },
-      ]
-    );
+          1000
+        );
+        setModalVisible(true);
+      } else {
+        Alert.alert('ไม่พบสถานที่', `ไม่พบผลลัพธ์สำหรับ "${searchText}"`);
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถค้นหาสถานที่ได้');
+    }
   };
 
   return (
-    <Animated.View style={{ flex: 1 }}>
-      <Animated.View
-        style={{
-          height: 100,
-          backgroundColor: '#f2bb14',
-          paddingTop: 40,
-          paddingHorizontal: 16,
-          justifyContent: 'center',
-        }}
-      >
-        <TouchableOpacity onPress={focusMap}>
-          <Text style={{ fontSize: 16, fontWeight: 'bold' }}>Focus</Text>
-        </TouchableOpacity>
-      </Animated.View>
+    <View style={styles.container}>
       <View style={styles.searchContainer}>
         <TextInput
           placeholder="ค้นหาสถานที่..."
@@ -190,37 +137,29 @@ export default function TabTwoScreen() {
           placeholderTextColor="#888"
         />
         <TouchableOpacity onPress={searchLocation} style={styles.searchButton}>
-          <Text style={{ color: 'white', fontWeight: 'bold' }}>ค้นหา</Text>
+          <Text>ค้นหา</Text>
         </TouchableOpacity>
       </View>
-      {region && (
-        <MapView
-          style={StyleSheet.absoluteFill}
-          provider={PROVIDER_GOOGLE}
-          region={region}
-          showsUserLocation
-          showsMyLocationButton
-          onRegionChangeComplete={onRegionChange}
-          ref={mapRef}
-          onPress={e => {
-            handleMarkerPress(e.nativeEvent.coordinate);
-          }}
-        >
-          {markers.map((marker, index) => (
-            <Marker
-              key={index}
-              coordinate={marker}
-              onPress={() => Alert.alert(marker.name)}
-            >
-              <Callout>
-                <Animated.View style={{ padding: 10 }}>
-                  <Text>{marker.name}</Text>
-                </Animated.View>
-              </Callout>
-            </Marker>
-          ))}
-        </MapView>
-      )}
+      
+      <MapView
+        ref={mapRef}
+        style={StyleSheet.absoluteFill}
+        region={region}
+        showsUserLocation
+        showsMyLocationButton
+        onPress={handleMapPress}
+      >
+        {markers.map((marker, index) => (
+          <Marker key={`main-${index}`} coordinate={marker}>
+            <Callout>
+              <View>
+                <Text>{marker.name}</Text>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
+      </MapView>
+
       <View style={styles.zoomControls}>
         <TouchableOpacity style={styles.zoomButton} onPress={zoomIn}>
           <Text style={styles.zoomText}>+</Text>
@@ -229,21 +168,27 @@ export default function TabTwoScreen() {
           <Text style={styles.zoomText}>-</Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={styles.locationButton}
-        onPress={() => setUseCurrentLocation(true)}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
       >
-        <Text style={{ color: 'white', fontWeight: 'bold' }}>ใช้ตำแหน่งปัจจุบัน</Text>
-      </TouchableOpacity>
-    </Animated.View>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>ยืนยันตำแหน่งที่เลือก</Text>
+            <TouchableOpacity style={styles.locationConfirmButton} onPress={getCurrentLocation}>
+              <Text style={styles.textButton}>ใช้ตำแหน่งปัจจุบัน</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <View style={[styles.bottomWhiteSpace, { bottom: insets.bottom + 65, height: height * 0.2 }]} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  container: { flex: 1 },
   searchContainer: {
     position: 'absolute',
     top: 60,
@@ -252,8 +197,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     zIndex: 10,
     backgroundColor: 'white',
-    borderRadius: 20, // เพิ่มขอบโค้งให้ทันสมัย
-    elevation: 6, // เพิ่มเงาให้เด่นชัด
+    borderRadius: 20,
+    elevation: 6,
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -266,22 +211,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     borderTopLeftRadius: 20,
     borderBottomLeftRadius: 20,
-    backgroundColor: '#f5f5f5', // พื้นหลังอ่อน ๆ
-    color: '#333', // สีตัวอักษรเข้มขึ้น
+    backgroundColor: '#f5f5f5',
+    color: '#333',
   },
   searchButton: {
     backgroundColor: '#f2bb14',
     paddingHorizontal: 20,
-    paddingVertical: 12,
     justifyContent: 'center',
     borderTopRightRadius: 20,
     borderBottomRightRadius: 20,
-    elevation: 4, // เพิ่มเงาให้ปุ่ม
+    color: 'white',
+    fontWeight: 'bold',
   },
   zoomControls: {
     position: 'absolute',
     right: 16,
-    bottom: 160,
+    bottom: 280,
     flexDirection: 'column',
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 12,
@@ -299,14 +244,55 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  locationButton: {
+  bottomWhiteSpace: {
+    backgroundColor: 'white',
     position: 'absolute',
-    bottom: 16,
     left: 16,
-    backgroundColor: '#f2bb14',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 20,
-    elevation: 4,
+    right: 16,
+    flexDirection: 'row',
+    zIndex: 11,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
   },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    padding: 30,
+    borderRadius: 20,
+    alignItems: 'center',
+    elevation: 5,
+    marginHorizontal: 0,
+    width: '70%',
+    maxWidth: '95%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  locationConfirmButton: {
+    backgroundColor: '#28a745',
+    paddingVertical: 10,
+    paddingHorizontal: 50,
+    borderRadius: 5,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 10,
+    gap: 10,
+  },
+  textButton: {
+    color: '#fff',
+    fontWeight: 'bold',
+  }
 });
