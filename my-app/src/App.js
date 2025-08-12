@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link } from 'react-router-dom';  // เพิ่ม Link
 import './App.css';
 
 function App() {
@@ -12,7 +12,9 @@ function App() {
         While You Sit And Stay - We’ll Go Out And Play
       </p>
 
-      <a href="/login" className="btn">GET STARTED</a>
+      {/* ใช้ Link แทน a */}
+      <Link to="/login" className="btn">GET STARTED</Link>
+
       <Outlet />
     </div>
   );
