@@ -10,7 +10,7 @@ export type ThemedTextProps = TextProps & {
 
 export function ThemedText({
   style,
-  lightColor,
+  lightColor, 
   darkColor,
   type = 'default',
   ...rest
