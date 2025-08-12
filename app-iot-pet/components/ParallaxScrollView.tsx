@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedRef,
-  useAnimatedStyle,
+  useAnimatedStyle, 
   useScrollViewOffset,
 } from 'react-native-reanimated';
 

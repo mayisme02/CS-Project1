@@ -4,7 +4,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
-  withSequence,
+  withSequence, 
   withTiming,
 } from 'react-native-reanimated';
 
