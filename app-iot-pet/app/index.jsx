@@ -4,7 +4,6 @@ import { router } from 'expo-router';
 
 export default function WelcomeScreen() {
   const handleGetStarted = () => {
-    // Navigate to login screen
     router.replace('/Login');
   };
 
@@ -35,7 +34,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffbf0eff',
   },
   imagePlaceholder: {
     width: 200,
@@ -64,7 +63,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   btn: {
-    backgroundColor: '#0a7ea4',
+    backgroundColor: '#905b0dff',
     paddingHorizontal: 40,
     paddingVertical: 15,
     borderRadius: 25,

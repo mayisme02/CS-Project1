@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import {View,Text,TextInput,TouchableOpacity,StyleSheet,Alert,KeyboardAvoidingView,Platform,ScrollView} from 'react-native';
+import {View,Text,TextInput,TouchableOpacity,StyleSheet,Alert,KeyboardAvoidingView,Platform,ScrollView,
+} from 'react-native';
 import { router } from 'expo-router';
 import { auth, db } from '../firebase/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 
-export default function RegisterScreen() {
+export default function Register() {
   const [username, setUsername] = useState('');
   const [telephone, setTelephone] = useState('');
   const [email, setEmail] = useState('');
@@ -28,7 +29,7 @@ export default function RegisterScreen() {
       });
 
       Alert.alert('สำเร็จ', 'ลงทะเบียนสำเร็จ! กำลังนำคุณไปยังหน้าแท็บ');
-      router.replace('/(tabs)/index');
+      router.replace('/(tabs)');
     } catch (error: any) {
       console.error('Registration error:', error);
       if (error.code === 'auth/email-already-in-use') {
