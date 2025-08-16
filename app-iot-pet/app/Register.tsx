@@ -6,7 +6,7 @@ import { auth, db } from '../firebase/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 
-export default function Register() {
+export default function Signup() {
   const [username, setUsername] = useState('');
   const [telephone, setTelephone] = useState('');
   const [email, setEmail] = useState('');
@@ -29,7 +29,7 @@ export default function Register() {
       });
 
       Alert.alert('สำเร็จ', 'ลงทะเบียนสำเร็จ! กำลังนำคุณไปยังหน้าแท็บ');
-      router.replace('/(tabs)');
+      router.replace('./(tabs)');
     } catch (error: any) {
       console.error('Registration error:', error);
       if (error.code === 'auth/email-already-in-use') {
@@ -41,7 +41,7 @@ export default function Register() {
   };
 
   const handleLoginLink = () => {
-    router.replace('/Login'); 
+    router.replace('./Login'); 
   };
 
   return (

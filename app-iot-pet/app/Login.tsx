@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,16 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { router } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '../firebase/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { Link, router } from 'expo-router';
+import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase/firebase';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -26,20 +24,27 @@ export default function LoginScreen() {
   const [cooldownTime, setCooldownTime] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Check if user is already logged in
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        router.replace('./(tabs)/index');
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Cooldown timer for too many requests
   useEffect(() => {
     let timer: number;
-    
-    if (isCooldown && cooldownTime > 0) {
-      timer = setTimeout(() => setCooldownTime(cooldownTime - 1), 1000);
-    } else if (cooldownTime === 0) {
-      setIsCooldown(false);
-      setErrorMessage('');
-    }
-    
-    return () => {
-      if (timer) {
-        clearTimeout(timer);
-      }
+if (isCooldown && cooldownTime > 0) {
+  timer = setTimeout(() => setCooldownTime(cooldownTime - 1), 1000);
+} else if (cooldownTime === 0) {
+  setIsCooldown(false);
+  setErrorMessage('');
+}
+return () => {
+      if (timer) clearTimeout(timer);
     };
   }, [isCooldown, cooldownTime]);
 
@@ -47,7 +52,6 @@ export default function LoginScreen() {
     if (isCooldown) return;
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
     if (!emailRegex.test(email.trim())) {
       setErrorMessage('รูปแบบอีเมลไม่ถูกต้อง');
       setShowForgotLink(false);
@@ -60,16 +64,13 @@ export default function LoginScreen() {
     }
 
     setIsLoading(true);
-
     try {
-      if (email === 'test@test.com' && password === 'password') {
-        setErrorMessage('');
-        setShowForgotLink(false);
-        router.replace('/(tabs)' as any);
-      } else {
-        throw new Error('Invalid credentials');
-      }
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      setErrorMessage('');
+      setShowForgotLink(false);
+      router.replace('./(tabs)/index');
     } catch (error: any) {
+      console.error('Login error:', error);
       if (error.code === 'auth/wrong-password') {
         setErrorMessage('รหัสผ่านไม่ถูกต้อง');
         setShowForgotLink(true);
@@ -80,6 +81,8 @@ export default function LoginScreen() {
         setIsCooldown(true);
         setCooldownTime(30);
         setShowForgotLink(true);
+      } else if (error.code === 'auth/invalid-email') {
+        setErrorMessage('อีเมลไม่ถูกต้อง');
       } else {
         setErrorMessage('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
       }
@@ -90,57 +93,34 @@ export default function LoginScreen() {
 
   const handleGoogleLogin = async () => {
     if (isCooldown) return;
-    
     Alert.alert(
       'Google Login',
       'Google Sign-In will be implemented with Firebase Auth',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Temporary navigation for testing
-            router.replace('/(tabs)' as any);
-          }
-        }
-      ]
+      [{ text: 'OK', onPress: () => router.replace('./(tabs)/index') }]
     );
   };
 
   const handleFacebookLogin = async () => {
     if (isCooldown) return;
-    
     Alert.alert(
       'Facebook Login',
       'Facebook Sign-In will be implemented with Firebase Auth',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Temporary navigation for testing
-            router.replace('/(tabs)' as any);
-          }
-        }
-      ]
+      [{ text: 'OK', onPress: () => router.replace('./(tabs)/index') }]
     );
   };
 
   const handleForgotPassword = () => {
-    // Navigate to reset password screen
-    Alert.alert('Reset Password', 'Reset password functionality will be implemented');
+    router.push('./resetpassword');
   };
 
-  const handleSignUp = () => {
-    router.replace('/Register');
-  };
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.loginCard}>
           <Text style={styles.loginTitle}>เข้าสู่ระบบ</Text>
-          
           <View style={styles.form}>
             <TextInput
               style={[styles.input, isCooldown && styles.inputDisabled]}
@@ -151,7 +131,6 @@ export default function LoginScreen() {
               autoCapitalize="none"
               editable={!isCooldown}
             />
-            
             <TextInput
               style={[styles.input, isCooldown && styles.inputDisabled]}
               placeholder="Password"
@@ -161,9 +140,7 @@ export default function LoginScreen() {
               editable={!isCooldown}
             />
 
-            {errorMessage ? (
-              <Text style={styles.error}>{errorMessage}</Text>
-            ) : null}
+            {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
             {showForgotLink && (
               <TouchableOpacity onPress={handleForgotPassword}>
@@ -188,11 +165,13 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity onPress={handleSignUp}>
-            <Text style={styles.signupText}>
-              ยังไม่มีบัญชีผู้ใช้? <Text style={styles.linkText}>Sign Up</Text>
-            </Text>
-          </TouchableOpacity>
+          <Link href="./Register" asChild>
+            <TouchableOpacity>
+              <Text style={styles.signupText}>
+                ยังไม่มีบัญชีผู้ใช้? <Text style={styles.linkText}>Sign Up</Text>
+              </Text>
+            </TouchableOpacity>
+          </Link>
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -205,7 +184,7 @@ export default function LoginScreen() {
             onPress={handleGoogleLogin}
             disabled={isCooldown}
           >
-            <Text style={styles.socialButtonText}>🌐 Login with Google</Text>
+            <Text style={styles.socialButtonText}>Login with Google</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -213,7 +192,7 @@ export default function LoginScreen() {
             onPress={handleFacebookLogin}
             disabled={isCooldown}
           >
-            <Text style={styles.socialButtonText}>📘 Login with Facebook</Text>
+            <Text style={styles.socialButtonText}>Login with Facebook</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -224,14 +203,14 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
   },
-  loginCard: {
+    loginCard: {
     backgroundColor: '#fff',
     borderRadius: 20,
     padding: 30,
@@ -248,7 +227,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#0a7ea4',
+    color: '#7D4E34',
     fontWeight: '600',
   },
   loginTitle: {
@@ -256,13 +235,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 30,
-    color: '#333',
+    color: '#7D4E34',
   },
   form: {
     marginBottom: 20,
   },
   input: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#D4D4D4',
     borderRadius: 10,
     padding: 15,
     marginBottom: 15,
@@ -287,11 +266,11 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   linkText: {
-    color: '#0a7ea4',
+    color: '#7D4E34',
     fontWeight: '600',
   },
   loginButton: {
-    backgroundColor: '#0a7ea4',
+    backgroundColor: '#7D4E34',
     borderRadius: 10,
     padding: 15,
     alignItems: 'center',
@@ -334,12 +313,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   googleButton: {
-    backgroundColor: '#fff',
-    borderColor: '#db4437',
+    backgroundColor: '#FFC107',
+    borderColor: '#e9ecef',
   },
   facebookButton: {
-    backgroundColor: '#fff',
-    borderColor: '#4267b2',
+    backgroundColor: '#FFC107',
+    borderColor: '#e9ecef',
   },
   socialButtonText: {
     fontSize: 16,
