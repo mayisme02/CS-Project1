@@ -32,32 +32,37 @@ export default function Maps() {
   const [modalVisible, setModalVisible] = useState(false);
 
   const getCurrentLocation = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission denied', 'ไม่สามารถเข้าถึงตำแหน่งได้');
-      return;
-    }
-    let location = await Location.getCurrentPositionAsync({});
-    const currentLocation: CustomMarker = {
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-      name: 'ตำแหน่งปัจจุบัน',
-    };
-    setMarkers([currentLocation]);
-    setRegion({
-      ...region,
-      latitude: currentLocation.latitude,
-      longitude: currentLocation.longitude,
-    });
-    mapRef.current?.animateToRegion(
-      {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission denied', 'ไม่สามารถเข้าถึงตำแหน่งได้');
+        return;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      const currentLocation: CustomMarker = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        name: 'ตำแหน่งปัจจุบัน',
+      };
+      setMarkers([currentLocation]);
+      setRegion({
         ...region,
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
-      },
-      1000
-    );
-    setModalVisible(false);
+      });
+      mapRef.current?.animateToRegion(
+        {
+          ...region,
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+        },
+        1000
+      );
+      setModalVisible(false);
+    } catch (error) {
+      console.error('Error getting location:', error);
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเข้าถึงตำแหน่งได้');
+    }
   };
 
   const zoomIn = () => {
@@ -86,12 +91,20 @@ export default function Maps() {
     setModalVisible(true);
   };
 
-  const GOOGLE_API_KEY = 'AIzaSyCSFB11ZL46SmsP15p9MSVnu6KkUhZPN40';
+  // ใช้ environment variable แทน hardcode API key
+  const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY_HERE';
+  
   const searchLocation = async () => {
     if (!searchText.trim()) {
       Alert.alert('กรุณากรอกสถานที่');
       return;
     }
+
+    if (GOOGLE_API_KEY === 'YOUR_API_KEY_HERE') {
+      Alert.alert('API Key Required', 'กรุณาตั้งค่า Google Maps API Key');
+      return;
+    }
+
     try {
       const response = await axios.get(
         `https://maps.googleapis.com/maps/api/geocode/json`,
@@ -101,6 +114,12 @@ export default function Maps() {
       );
       if (response.data.status === 'OK') {
         const { lat, lng } = response.data.results[0].geometry.location;
+        const newLocation: CustomMarker = {
+          latitude: lat,
+          longitude: lng,
+          name: searchText,
+        };
+        setMarkers([newLocation]);
         setRegion({
           ...region,
           latitude: lat,
@@ -114,14 +133,18 @@ export default function Maps() {
           },
           1000
         );
-        setModalVisible(true);
+        setSearchText('');
       } else {
         Alert.alert('ไม่พบสถานที่', `ไม่พบผลลัพธ์สำหรับ "${searchText}"`);
       }
     } catch (error) {
-      console.error(error);
+      console.error('Search error:', error);
       Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถค้นหาสถานที่ได้');
     }
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
   };
 
   return (
@@ -137,7 +160,7 @@ export default function Maps() {
           placeholderTextColor="#888"
         />
         <TouchableOpacity onPress={searchLocation} style={styles.searchButton}>
-          <Text>ค้นหา</Text>
+          <Text style={styles.searchButtonText}>ค้นหา</Text>
         </TouchableOpacity>
       </View>
       
@@ -152,8 +175,8 @@ export default function Maps() {
         {markers.map((marker, index) => (
           <Marker key={`main-${index}`} coordinate={marker}>
             <Callout>
-              <View>
-                <Text>{marker.name}</Text>
+              <View style={styles.calloutContainer}>
+                <Text style={styles.calloutText}>{marker.name}</Text>
               </View>
             </Callout>
           </Marker>
@@ -168,20 +191,28 @@ export default function Maps() {
           <Text style={styles.zoomText}>-</Text>
         </TouchableOpacity>
       </View>
+
       <Modal
         animationType="slide"
         transparent={true}
         visible={modalVisible}
+        onRequestClose={closeModal}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>ยืนยันตำแหน่งที่เลือก</Text>
-            <TouchableOpacity style={styles.locationConfirmButton} onPress={getCurrentLocation}>
-              <Text style={styles.textButton}>ใช้ตำแหน่งปัจจุบัน</Text>
-            </TouchableOpacity>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity style={styles.locationConfirmButton} onPress={getCurrentLocation}>
+                <Text style={styles.textButton}>ใช้ตำแหน่งปัจจุบัน</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cancelButton} onPress={closeModal}>
+                <Text style={styles.cancelButtonText}>ปิด</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
+
       <View style={[styles.bottomWhiteSpace, { bottom: insets.bottom + 65, height: height * 0.2 }]} />
     </View>
   );
@@ -220,6 +251,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderTopRightRadius: 20,
     borderBottomRightRadius: 20,
+  },
+  searchButtonText: {
     color: 'white',
     fontWeight: 'bold',
   },
@@ -263,36 +296,59 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'white',
     padding: 30,
     borderRadius: 20,
     alignItems: 'center',
     elevation: 5,
-    marginHorizontal: 0,
-    width: '70%',
-    maxWidth: '95%',
+    marginHorizontal: 20,
+    width: '80%',
+    maxWidth: 300,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 20,
+    textAlign: 'center',
   },
   locationConfirmButton: {
     backgroundColor: '#28a745',
     paddingVertical: 10,
-    paddingHorizontal: 50,
+    paddingHorizontal: 20,
     borderRadius: 5,
-    marginTop: 10,
     alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  cancelButton: {
+    backgroundColor: '#dc3545',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    alignItems: 'center',
+    flex: 1,
   },
   buttonRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 10,
-    gap: 10,
+    justifyContent: 'space-between',
+    width: '100%',
   },
   textButton: {
     color: '#fff',
     fontWeight: 'bold',
-  }
+    fontSize: 14,
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  calloutContainer: {
+    minWidth: 100,
+    padding: 5,
+  },
+  calloutText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
 });

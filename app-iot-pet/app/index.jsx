@@ -4,13 +4,12 @@ import { router } from 'expo-router';
 
 export default function WelcomeScreen() {
   const handleGetStarted = () => {
-    // Navigate to tabs
-    router.replace('/(tabs)');
+    // Navigate to login screen
+    router.replace('/Login');
   };
 
   return (
     <View style={styles.container}>
-      {/* ใช้ Image แทน img */}
       <Image 
         source={require('../assets/images/01.png')}
         style={styles.dogImg}
@@ -38,10 +37,17 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#fff',
   },
-  dogImg: {
+  imagePlaceholder: {
     width: 200,
     height: 200,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 30,
+  },
+  imagePlaceholderText: {
+    fontSize: 80,
   },
   title: {
     fontSize: 28,
