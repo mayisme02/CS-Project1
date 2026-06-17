@@ -91,8 +91,8 @@ The system integrates an IoT-based tracking device to collect real-time GPS data
 ### Device 
 > The actual IoT device used in this project for real-time GPS tracking. 
 <p> 
-   <img width="273" height="640" src="https://github.com/user-attachments/assets/4bbe7e45-0e14-4eb2-afc4-379f1f48ccca" /> 
-   <img width="220" height="570" src="https://github.com/user-attachments/assets/0e63a9c7-6b89-4b2f-acbe-74adc371eb68" /> 
+   <img width="373" height="300" src="https://github.com/user-attachments/assets/4bbe7e45-0e14-4eb2-afc4-379f1f48ccca" /> 
+   <img width="320" height="420" src="https://github.com/user-attachments/assets/0e63a9c7-6b89-4b2f-acbe-74adc371eb68" /> 
 </p> 
 
 ## Features
